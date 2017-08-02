@@ -260,20 +260,91 @@ function askChoice(sentence, idx, sStruct)
 	});
 }
 
-var mStruct = choose(sentenceTypes);
-mStruct = sentenceTypes[6];
-mStruct = mStruct.slice(); // a copy
-var promise = askChoice("", 0, mStruct);
+//create sentence halves
 
-for(var i = 1; i < mStruct.length; i++)
+var sentenceHalves = [[],[]];
+
+for(var i = 0; i < sentenceTypes.length; i++)
 {
-	promise = promise.then(function(data)
+	var h1 = [sentenceTypes[i][0],sentenceTypes[i][1]];
+	sentenceHalves[0].push(h1);
+	var h2 = [];
+	for(var j =2; j < sentenceTypes[i].length; j++)
 	{
-		return askChoice(data[0], data[1], mStruct);
+		h2.push(sentenceTypes[i][j])
+	}
+	if(h2.length > 0)
+	{
+		sentenceHalves[1].push(h2);
+	}
+}
+
+function constructSentence(sStruct)
+{
+	return new Promise(function(resolve)
+	{
+		sStruct = sStruct.slice(); // a copy
+		var promise = askChoice("", 0, sStruct);
+
+		for(var i = 1; i < sStruct.length; i++)
+		{
+			promise = promise.then(function(data)
+			{
+				return askChoice(data[0], data[1], sStruct);
+			});
+		}
+
+		promise.then(function(data)
+		{
+			resolve(data[0]);
+		})
 	});
 }
 
-// promise.then(function(data){
-// 	console.log(data[0])
-// 	rl.close();
-// })
+
+//construct 5 sentence halves
+var finalHalves = [[],[]];
+
+var promise = constructSentence(choose(sentenceHalves[0]));
+
+//construct first halves
+for( var i = 1; i < 3; i++)
+{
+	promise = promise.then(function(data)
+	{
+		finalHalves[0].push(data);
+		return constructSentence(choose(sentenceHalves[0]))
+	});
+}
+
+//construct the second halves
+
+promise = promise.then(function(data)
+{
+	finalHalves[0].push(data);
+	var promise2 = constructSentence(choose(sentenceHalves[1]));
+
+	for( var i = 1; i < 3; i++)
+	{
+		promise2 = promise2.then(function(data)
+		{
+			finalHalves[1].push(data);
+			return constructSentence(choose(sentenceHalves[1]))
+		});
+	}
+
+	//the end
+	promise2.then(function(data)
+	{
+		finalHalves[1].push(data);
+		console.log(finalHalves);
+		rl.close();
+	})
+
+})
+
+//TODO -
+
+//generate more sentence types.
+//longer sentenceTypes
+//think more carefully about intercombination
