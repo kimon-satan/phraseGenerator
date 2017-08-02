@@ -111,9 +111,9 @@ var sentenceTypes = [
 	[["MN1","MN2","PL"], "MV", "V"],
 	[["MN1","MN2","PL"], "MV", "V", "Adv"],
 	[["MN1","MN2","PL"], "MV", "V", ["MN1","MN2","PL"], "Adv"],
-	[["MN1","MN2"], "V+s"], //this looks wrong
-	[["MN1","MN2"], "V+s", "Adv"],
-	[["MN1","MN2"], "V+s", ["MN1","MN2","PL"], "Adv"],
+	[["MN1","MN2","PL"], "V"], //this looks wrong
+	[["MN1","MN2","PL"], "V", "Adv"],
+	[["MN1","MN2","PL"], "V", ["MN1","MN2","PL"], "Adv"],
 	["MN2", "MV", "be", "PV", "by", ["MN1","MN2","PL"]]
 ];
 
@@ -161,14 +161,16 @@ function nextChoice(idx, sStruct)
 	if(typeof(key) == "object")
 	{
 		key = choose(key);
+		sStruct[idx] = key; // replace with just the single option
 	}
 
-	rex = /(\w*)\+(\w*)/;
-	res = rex.exec(key);
-	if(res)
-	{
-		key = res[1]
-	}
+	//we probably don't need this
+	// rex = /(\w*)\+(\w*)/;
+	// res = rex.exec(key);
+	// if(res)
+	// {
+	// 	key = res[1]
+	// }
 
 	if(phraseBook[key] == undefined)
 	{
@@ -184,10 +186,10 @@ function nextChoice(idx, sStruct)
 		var word = choose(words);
 		var idx = words.indexOf(word);
 		words.splice(idx,1);
-		if(res)
-		{
-			word += res[2]
-		}
+		// if(res)
+		// {
+		// 	word += res[2]
+		// }
 		choice.push(word);
 	}
 
@@ -204,19 +206,43 @@ function askChoice(sentence, idx, sStruct)
 	return new Promise(function(resolve)
 	{
 		var choice = nextChoice(idx, sStruct);
-		var question = sentence + " ... 1. " + choice[0] + " or 2. " + choice[1] + "\n";
 
-		rl.question( question , (answer) =>
+		if(typeof(choice) == "string")
 		{
-			sentence += " " + choice[answer-1];
+			sentence += " " + choice;
 			resolve([sentence,idx+1]);
-		});
+		}
+		else
+		{
+			//grammatical additions here
+			if(idx > 0)
+			{
+				if(sStruct[idx] == "V")
+				{
+					if(sStruct[idx - 1] == "MN1" || sStruct[idx - 1] == "MN2")
+					{
+						choice[0] += "s";
+						choice[1] += "s";
+					}
+				}
+			}
+
+			var question = "1. " + sentence + " " +choice[0] + " or 2. " + sentence + " " + choice[1] + "\n";
+
+			rl.question( question , (answer) =>
+			{
+				sentence += " " + choice[answer-1];
+				resolve([sentence,idx+1]);
+			});
+
+		}
 
 	});
 }
 
 var mStruct = choose(sentenceTypes);
-var promise = askChoice("", 0, mStruct)
+mStruct = mStruct.slice(); // a copy
+var promise = askChoice("", 0, mStruct);
 
 for(var i = 1; i < mStruct.length; i++)
 {
