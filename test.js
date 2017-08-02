@@ -136,47 +136,61 @@ var sentenceTypes = [
 //
 // });
 
-//sentences on the fly
+//We're not using this right now
 
-var phraseMap =
+// var phraseMap =
+// {
+// 	"MN1" : ["MV", "V+s"],
+// 	"MN2" : ["MV", "V+s"],
+// 	"PL" : ["MV", "V"],
+// 	"V" : ["Adv", "MN1", "MN2", "PL"],
+// 	"Adv" : [],
+// 	"PV" : ["by"],
+// 	"MV": ["V", "be"],
+// 	"be": ["PV"],
+// 	"by": ["MN1", "MN1", "MN2", "PL"]
+// }
+
+
+function nextChoice(idx, sStruct)
 {
-	"MN1" : ["MV", "V+s"],
-	"MN2" : ["MV", "V+s"],
-	"PL" : ["MV", "V"],
-	"V" : ["Adv", "MN1", "MN2", "PL"],
-	"Adv" : [],
-	"PV" : ["by"],
-	"MV": ["V", "be"],
-	"be": ["PV"],
-	"by": ["MN1", "MN1", "MN2", "PL"]
-}
-
-function nextChoice(prevkey){
-
 	var choice = [];
-	var keys = phraseMap[prevkey];
-	if(keys.length < 1)
+
+	var key = sStruct[idx];
+
+	if(typeof(key) == "object")
 	{
-		return false;
+		key = choose(key);
+	}
+
+	rex = /(\w*)\+(\w*)/;
+	res = rex.exec(key);
+	if(res)
+	{
+		key = res[1]
+	}
+
+	if(phraseBook[key] == undefined)
+	{
+		return key;
+	}
+	else
+	{
+		var words = phraseBook[key].slice();
 	}
 
 	for(var i = 0; i < 2; i++)
 	{
-		var o = {};
-		o.key = choose(keys);
-		if(phraseBook[o.key] == undefined)
+		var word = choose(words);
+		var idx = words.indexOf(word);
+		words.splice(idx,1);
+		if(res)
 		{
-			o.word = o.key;
+			word += res[2]
 		}
-		else
-		{
-			o.word = choose(phraseBook[o.key]);
-		}
-
-		choice.push(o);
+		choice.push(word);
 	}
 
-	//TODO deal with duplicates
 	return choice;
 }
 
@@ -185,31 +199,34 @@ function choose(list)
 	return list[Math.floor(Math.random() * list.length)];
 }
 
-//NB. this leads to incoherent choices.
-
-function askChoice(choice)
+function askChoice(sentence, idx, sStruct)
 {
-	var question = sentence + " ... 1. " + choice[0].word + " or 2. " + choice[1].word + "\n";
+	return new Promise(function(resolve)
+	{
+		var choice = nextChoice(idx, sStruct);
+		var question = sentence + " ... 1. " + choice[0] + " or 2. " + choice[1] + "\n";
 
-	rl.question( question , (answer) => {
-
-		sentence += " " + choice[answer-1].word;
-		var c = nextChoice(choice[answer-1].key);
-		if(!c)
+		rl.question( question , (answer) =>
 		{
-			rl.pause();
-			return;
-		}
-		else
-		{
-			askChoice(c);
-		}
+			sentence += " " + choice[answer-1];
+			resolve([sentence,idx+1]);
+		});
 
 	});
 }
 
+var mStruct = choose(sentenceTypes);
+var promise = askChoice("", 0, mStruct)
 
-var ckey = choose(["MN1","MN2","PL"]);
-var sentence = choose(phraseBook[ckey]);
-var mChoice = nextChoice(ckey);
-askChoice(mChoice);
+for(var i = 1; i < mStruct.length; i++)
+{
+	promise = promise.then(function(data)
+	{
+		return askChoice(data[0], data[1], mStruct);
+	});
+}
+
+promise.then(function(data){
+	console.log(data[0])
+	rl.close();
+})
