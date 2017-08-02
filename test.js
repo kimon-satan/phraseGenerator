@@ -23,11 +23,11 @@ phraseBook["MN2"]= ["government", "wealth", "justice", "freedom", "truth", "equa
 //Modal Verbs (MV)
 phraseBook["MV"]= ["can", "can’t", "will", "will not", "must", "must not"];
 
-//Verb (V)
-phraseBook["V"]= ["accommodate", "support", "trust", "recognise", "protect", "restrict", "resist"];
+//Verb (VO) ... verb with object
+phraseBook["VO"]= ["accommodate", "support", "trust", "recognise", "protect", "restrict", "resist"];
 
-//PastVerb (PV)
-phraseBook["PV"]= ["accommodated", "supported", "trusted", "recognised", "punished", "protected", "restricted", "resisted"];
+//Verb (VO) ... verb without object
+phraseBook["V"]= ["prevail", "rule", "decide"];
 
 //Adv phrases (Adv)
 phraseBook["Adv"]= ["without cause", "with good cause", "without compromise", "with reason", "in good faith"];
@@ -108,13 +108,13 @@ function buildTree(sentence)
 }
 
 var sentenceTypes = [
-	[["MN1","MN2","PL"], "MV", "V"],
-	[["MN1","MN2","PL"], "MV", "V", "Adv"],
-	[["MN1","MN2","PL"], "MV", "V", ["MN1","MN2","PL"], "Adv"],
-	[["MN1","MN2","PL"], "V"], //this looks wrong
-	[["MN1","MN2","PL"], "V", "Adv"],
-	[["MN1","MN2","PL"], "V", ["MN1","MN2","PL"], "Adv"],
-	["MN2", "MV", "be", "PV", "by", ["MN1","MN2","PL"]]
+	[["MN1","MN2","PL"], "MV", ["VO", "V"]],
+	[["MN1","MN2","PL"], "MV", ["VO", "V"], "Adv"],
+	[["MN1","MN2","PL"], "MV", "VO", ["MN1","MN2","PL"], "Adv"],
+	[["MN1","MN2","PL"], "V"],
+	[["MN1","MN2","PL"], "VO", "Adv"],
+	[["MN1","MN2","PL"], "VO", ["MN1","MN2","PL"], "Adv"],
+	["MN2", "MV", "be", "VO", "by", ["MN1","MN2","PL"]]
 ];
 
 //generating a whole lot of sentences - around 22000
@@ -142,11 +142,11 @@ var sentenceTypes = [
 // {
 // 	"MN1" : ["MV", "V+s"],
 // 	"MN2" : ["MV", "V+s"],
-// 	"PL" : ["MV", "V"],
-// 	"V" : ["Adv", "MN1", "MN2", "PL"],
+// 	"PL" : ["MV", "VO"],
+// 	"VO" : ["Adv", "MN1", "MN2", "PL"],
 // 	"Adv" : [],
 // 	"PV" : ["by"],
-// 	"MV": ["V", "be"],
+// 	"MV": ["VO", "be"],
 // 	"be": ["PV"],
 // 	"by": ["MN1", "MN1", "MN2", "PL"]
 // }
@@ -201,6 +201,36 @@ function choose(list)
 	return list[Math.floor(Math.random() * list.length)];
 }
 
+function applyRules(idx, sStruct, choice)
+{
+	if(idx > 0)
+	{
+		if(sStruct[idx] == "VO")
+		{
+			if(sStruct[idx - 1] == "MN1" || sStruct[idx - 1] == "MN2")
+			{
+				choice[0] += "s";
+				choice[1] += "s";
+			}
+
+			if(sStruct[idx - 1] == "be")
+			{
+				for(var i = 0; i < 2; i ++)
+				{
+					if(choice[i][choice[i].length -1] == "e")
+					{
+						choice[i] += "d"
+					}
+					else
+					{
+						choice[i] += "ed"
+					}
+				}
+			}
+		}
+	}
+}
+
 function askChoice(sentence, idx, sStruct)
 {
 	return new Promise(function(resolve)
@@ -215,19 +245,9 @@ function askChoice(sentence, idx, sStruct)
 		else
 		{
 			//grammatical additions here
-			if(idx > 0)
-			{
-				if(sStruct[idx] == "V")
-				{
-					if(sStruct[idx - 1] == "MN1" || sStruct[idx - 1] == "MN2")
-					{
-						choice[0] += "s";
-						choice[1] += "s";
-					}
-				}
-			}
+			applyRules(idx, sStruct, choice)
 
-			var question = "1. " + sentence + " " +choice[0] + " or 2. " + sentence + " " + choice[1] + "\n";
+			var question = "1. " + sentence + " " + choice[0] + " or 2. " + sentence + " " + choice[1] + "\n";
 
 			rl.question( question , (answer) =>
 			{
@@ -241,6 +261,7 @@ function askChoice(sentence, idx, sStruct)
 }
 
 var mStruct = choose(sentenceTypes);
+mStruct = sentenceTypes[6];
 mStruct = mStruct.slice(); // a copy
 var promise = askChoice("", 0, mStruct);
 
@@ -252,7 +273,7 @@ for(var i = 1; i < mStruct.length; i++)
 	});
 }
 
-promise.then(function(data){
-	console.log(data[0])
-	rl.close();
-})
+// promise.then(function(data){
+// 	console.log(data[0])
+// 	rl.close();
+// })
